@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gitlab.praktikum-services.ru/Stasyan/momo-store/internal/store/dumplings"
+	"gitlab.praktikum-services.ru/a.cherkashin/momo-store/internal/store/dumplings"
 )
 
 // Store is a fake in-memory implementation of dumplings.Store

@@ -1,0 +1,49 @@
+---
+variables: 
+  SAST_EXCLUDED_ANALYZERS: "nodejs-scan-sast, gosec-sast"
+  #gosec tests are deprecated since Gitlab 14, disabled in GitLab 15.5 already
+
+include:
+  - template: Security/SAST.gitlab-ci.yml
+
+stages:
+  - test
+
+.sast-analyzer:
+  extends: sast
+  allow_failure: true
+  # `rules` must be overridden explicitly by each child job
+  # see https://gitlab.com/gitlab-org/gitlab/-/issues/218444
+  before_script:
+   - echo -e "[url \"https://oauth2:${MY_TOKEN}@gitlab.praktikum-services.ru/\"]\n\tinsteadOf = https://gitlab.praktikum-services.ru/" | tee -a ~/.gitconfig
+  script:
+    - /analyzer run
+
+gosec-test:
+  stage: test
+  image: securego/gosec
+  allow_failure: true
+  script:
+    - cd backend
+    - gosec ./...
+
+sonarqube-backend-sast:
+  stage: test
+  image: sonarsource/sonar-scanner-cli:latest
+  allow_failure: true
+  script:
+    - cd backend
+    - >
+      sonar-scanner 
+      -Dsonar.qualitygate.wait=true 
+      -Dsonar.projectKey=${SONAR_KEY_BACK} 
+      -Dsonar.sources=. 
+      -Dsonar.host.url=${SONARQUBE_URL} 
+      -Dsonar.login=${SONAR_LOGIN_BACK}
+
+go-test:
+  stage: test
+  image: golang:alpine
+  script:
+    - cd backend
+    - CGO_ENABLED=0 go test -v ./...

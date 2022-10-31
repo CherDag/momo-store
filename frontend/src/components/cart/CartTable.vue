@@ -1,5 +1,6 @@
 <template>
   <table class="table table-hover align-middle">
+    <caption>Cart</caption>
     <thead>
       <tr>
         <th scope="col">Название</th>

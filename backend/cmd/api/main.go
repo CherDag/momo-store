@@ -12,9 +12,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"gitlab.praktikum-services.ru/Stasyan/momo-store/cmd/api/app"
-	"gitlab.praktikum-services.ru/Stasyan/momo-store/cmd/api/dependencies"
-	"gitlab.praktikum-services.ru/Stasyan/momo-store/internal/logger"
+	"gitlab.praktikum-services.ru/a.cherkashin/momo-store/cmd/api/app"
+	"gitlab.praktikum-services.ru/a.cherkashin/momo-store/cmd/api/dependencies"
+	"gitlab.praktikum-services.ru/a.cherkashin/momo-store/internal/logger"
 )
 
 func main() {

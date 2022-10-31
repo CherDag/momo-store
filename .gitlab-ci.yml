@@ -1,0 +1,22 @@
+stages:
+  - module-pipeline
+variables:
+  VERSION: 1.0.${CI_PIPELINE_ID}
+
+frontend:
+  stage: module-pipeline
+  trigger: 
+    include: frontend/.gitlab-ci.yml
+    strategy: depend
+  only:
+    changes:
+      - frontend/**/*
+
+backend:
+  stage: module-pipeline
+  trigger:
+    include: backend/.gitlab-ci.yml
+    strategy: depend
+  only:
+    changes:
+      - backend/**/*

@@ -1,8 +1,8 @@
 package dependencies
 
 import (
-	"gitlab.praktikum-services.ru/Stasyan/momo-store/internal/store/dumplings"
-	"gitlab.praktikum-services.ru/Stasyan/momo-store/internal/store/dumplings/fake"
+	"gitlab.praktikum-services.ru/a.cherkashin/momo-store/internal/store/dumplings"
+	"gitlab.praktikum-services.ru/a.cherkashin/momo-store/internal/store/dumplings/fake"
 )
 
 // NewFakeDumplingsStore returns new fake store for app

@@ -1,0 +1,22 @@
+variables: 
+  SAST_EXCLUDED_ANALYZERS: "spotbugs, gosec-sast"
+
+include:
+  - template: Security/SAST.gitlab-ci.yml #Добавляем тестирование встроенными средствами GitLab
+
+stages:
+  - test
+
+sonarqube-frontend-sast:
+  stage: test
+  image: sonarsource/sonar-scanner-cli:latest
+  allow_failure: true
+  script:
+    - cd frontend
+    - >
+      sonar-scanner 
+      -Dsonar.qualitygate.wait=true 
+      -Dsonar.projectKey=${SONAR_KEY_FRONT} 
+      -Dsonar.sources=. 
+      -Dsonar.host.url=${SONARQUBE_URL} 
+      -Dsonar.login=${SONAR_LOGIN_FRONT}

@@ -16,3 +16,6 @@ vendor/
 .idea/
 .vscode/
 .DS_Store
+
+#additional files
+my.env

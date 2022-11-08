@@ -3,9 +3,14 @@ variables:
 
 include:
   - template: Security/SAST.gitlab-ci.yml #Добавляем тестирование встроенными средствами GitLab
+  - project: "templates/ci"
+    file: "DockerInDockerTemplate.yml"
 
 stages:
   - test
+  - build-image
+  - test-image
+  - release
 
 sonarqube-frontend-sast:
   stage: test
@@ -20,3 +25,78 @@ sonarqube-frontend-sast:
       -Dsonar.sources=. 
       -Dsonar.host.url=${SONARQUBE_URL} 
       -Dsonar.login=${SONAR_LOGIN_FRONT}
+
+build:
+  stage: build-image
+  cache: []
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  script:
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+    - >-
+      /kaniko/executor
+      --context "${CI_PROJECT_DIR}/frontend"
+      --build-arg VERSION=$VERSION
+      --build-arg VUE_APP_API_URL=$BACKEND_API_URL
+      --dockerfile "${CI_PROJECT_DIR}/frontend/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}/momo-frontend:${VERSION}"
+      --cache=true
+
+postman-test:
+  stage: test-image
+  cache: []
+  variables:
+    GIT_STRATEGY: none
+  image: docker:20.10.12-dind
+  before_script:
+    - until docker info; do sleep 1; done
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - mkdir -p collections
+    - > # загружаем коллекцию
+      wget -O collections/momo-frontend.postman_collection.json --header "PRIVATE-TOKEN: ${MY_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/files/postman%2Fmomo-frontend.postman_collection.json/raw?ref=${CI_COMMIT_SHA}"
+
+  script:
+    - docker pull $CI_REGISTRY_IMAGE/momo-frontend:$VERSION
+    - docker network create -d bridge testing
+    - >
+      docker run -d --name frontend
+      --network=testing
+      -p 8080:8080
+      $CI_REGISTRY_IMAGE/momo-frontend:$VERSION
+    - until [ "`docker inspect -f {{.State.Health.Status}} frontend`" == "healthy" ]; do sleep 0.5; done
+    - >
+      docker run
+      --network=testing
+      -v ${PWD}/collections:/etc/newman
+      -t postman/newman
+      run momo-frontend.postman_collection.json
+
+upload-image-latest:
+  variables:
+    GIT_STRATEGY: none
+  cache: []
+  image: docker:20.10.12-dind-rootless
+  stage: release
+  before_script:
+    - until docker info; do sleep 1; done
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker pull $CI_REGISTRY_IMAGE/momo-frontend:$VERSION
+    # если образ прошел проверки в CI (сканирование, тесты и т.д), то тегаем latest
+    - docker tag $CI_REGISTRY_IMAGE/momo-frontend:$VERSION $CI_REGISTRY_IMAGE/momo-frontend:latest
+    - docker push $CI_REGISTRY_IMAGE/momo-frontend:latest
+
+
+notify:
+  stage: .post
+  variables:
+    GIT_STRATEGY: none
+  cache: []
+  script:
+    - > 
+      curl -X POST -H "Content-Type: application/json" -d 
+      "{\"chat_id\": \"-844923583\", 
+      \"text\": \"CI: вышел новый фронтенд пельменной. Неплохо бы задеплоить\"}" 
+      https://api.telegram.org/bot5749089203:AAFC3sgD5NjtJLP945FJ26UA211HmGJlHaQ/sendMessage

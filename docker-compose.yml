@@ -1,0 +1,27 @@
+version: '3.4'
+
+services:
+
+  frontend:
+    image: ${CI_REGISTRY_IMAGE}/momo-frontend:latest
+    restart: always
+    hostname: frontend
+    environment:
+      - NODE_ENV=production
+    ports:
+      - 80:8080
+    networks:
+      - momo-network
+
+  backend:
+    image: ${CI_REGISTRY_IMAGE}/momo-backend:latest
+    restart: always
+    hostname: backend
+    ports:
+      - 8081:8081
+    networks:
+      - momo-network
+
+networks:
+  momo-network:
+      driver: bridge

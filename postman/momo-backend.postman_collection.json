@@ -1,0 +1,44 @@
+{
+	"info": {
+		"_postman_id": "cf3718ce-139c-4e6d-90a9-9f68366db4a1",
+		"name": "momo-backend",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "22833785"
+	},
+	"item": [
+		{
+			"name": "backend",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Backend status\", function() {",
+							"    //check if request response status is OK (200)",
+							"    pm.response.to.have.status(200);",
+							"",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://backend:8081/products",
+					"protocol": "http",
+					"host": [
+						"backend"
+					],
+					"port": "8081",
+					"path": [
+						"products"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

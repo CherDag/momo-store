@@ -78,7 +78,7 @@ deploy-chart:
 create-env:
   stage: deploy
   variables:
-    - GIT_STRATEGY: none
+    GIT_STRATEGY: none
   environment:
     name: momo-store
     deployment_tier: production

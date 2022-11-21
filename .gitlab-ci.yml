@@ -65,4 +65,16 @@ backend:
 #     deployment_tier: production
 #     url: ${PRODUCTION_URL}
 #   extends: deploy-staging
+
+deloy-chart:
+  stage: deploy
+  when: manual
+  variables:
+    APP_VERSION: $VERSION
+  environment:
+    name: momo-store
+    deployment_tier: production
+    url: ${FQDN}
+  trigger: 
+    project: a.cherkashin/momo-infrastructure
   

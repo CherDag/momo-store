@@ -73,12 +73,12 @@ deploy-chart:
     APP_VERSION: $VERSION
   trigger: 
     project: a.cherkashin/momo-infrastructure
+    strategy: depend
 
 create-env:
   stage: deploy
   variables:
-    GIT_STRATEGY: none
-  cache: []
+    - GIT_STRATEGY: none
   environment:
     name: momo-store
     deployment_tier: production

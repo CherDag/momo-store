@@ -66,7 +66,7 @@ backend:
 #     url: ${PRODUCTION_URL}
 #   extends: deploy-staging
 
-deloy-chart:
+deploy-chart:
   stage: deploy
   when: manual
   variables:
@@ -77,7 +77,7 @@ deloy-chart:
 create-env:
   stage: deploy
   variables:
-    - GIT_STRATEGY: none
+    GIT_STRATEGY: none
   cache: []
   environment:
     name: momo-store
@@ -85,4 +85,6 @@ create-env:
     url: ${FQDN}
   needs:
     - deploy-chart
+  script:
+    - echo Deploy
   

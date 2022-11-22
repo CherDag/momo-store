@@ -1,4 +1,6 @@
-# Momo Store aka Пельменная №2
+[English](README.en.md)
+
+# Momo Store aka Пельменная №2 <!-- omit in toc -->
 
 URL: https://momo.cherkashin.org/
 
@@ -6,7 +8,8 @@ URL: https://momo.cherkashin.org/
 
 Магазин-пельменная
 
-# Оглавление
+# Оглавление <!-- omit in toc -->
+
 - [Общее](#общее)
   - [Frontend](#frontend)
   - [Backend](#backend)
@@ -183,8 +186,8 @@ cd kubernetes-system/argocd
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 kubectl apply -n argocd -f ingress.yml
-kubectl apply -n argocd -f policy.yml
 kubectl apply -n argocd -f user.yml
+kubectl apply -n argocd -f policy.yml
 ```
 После установки добавить приложение `momo-store` через YAML
 

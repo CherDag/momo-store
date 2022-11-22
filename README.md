@@ -126,12 +126,12 @@ docker-compose up
 .
 ├── chart                  - Helm чарт приложения
 ├── kubernetes-system      - Чарты и манифесты для дополнительных компонентов инфраструктуры
-|   ├── argo
-|   ├── grafana
-|   ├── prometheus
-|   ├── acme-issuer.yml
-|   ├── README.md
-|   └── sa.yml
+│   ├── argo
+│   ├── grafana
+│   ├── prometheus
+│   ├── acme-issuer.yml
+│   ├── README.md
+│   └── sa.yml
 ├── manifests               - манифесты для развертывания вручную
 ├── terraform               - манифесты IaC
 ├── .gitlab-ci.yml

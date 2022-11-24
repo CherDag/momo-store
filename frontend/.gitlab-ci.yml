@@ -39,7 +39,6 @@ build:
       /kaniko/executor
       --context "${CI_PROJECT_DIR}/frontend"
       --build-arg VERSION=$VERSION
-      --build-arg VUE_APP_API_URL=$BACKEND_API_URL
       --dockerfile "${CI_PROJECT_DIR}/frontend/Dockerfile"
       --destination "${CI_REGISTRY_IMAGE}/momo-frontend:${VERSION}"
       --cache=true

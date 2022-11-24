@@ -66,25 +66,71 @@ backend:
 #     url: ${PRODUCTION_URL}
 #   extends: deploy-staging
 
-deploy-chart:
-  stage: deploy
-  when: manual
-  variables:
-    APP_VERSION: $VERSION
-  trigger: 
+.trigger-infra:
+  trigger:
     project: a.cherkashin/momo-infrastructure
+    branch: $CI_COMMIT_REF_NAME
     strategy: depend
 
-create-env:
+.helm_prepare:
+  image: dtzar/helm-kubectl
+  before_script:
+    - mkdir -p ~/.kube
+    - base64 -d ${KUBECONFIG_ENCRYPTED} > ~/.kube/config
+    - chmod 0600 ~/.kube/config
+    - helm repo add momo-store --username ${NEXUS_USER} --password ${NEXUS_PASS} $NEXUS_REPO_URL
+    - helm repo update
+
+deploy-staging:
   stage: deploy
-  variables:
-    GIT_STRATEGY: none
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_REF_NAME != $CI_DEFAULT_BRANCH'
+  environment:
+    name: momo-store-staging
+    deployment_tier: staging
+    url: ${STAGING_URL}
+    on_stop: delete-app
+  extends: .helm_prepare
+  script:
+    - >
+      helm upgrade --install --atomic
+      --kubeconfig ~/.kube/config
+      --set frontend.fqdn=${STAGING_FQDN}
+      --namespace momo-staging --create-namespace
+      momo-store-staging momo-store/momo-store
+
+delete-app:
+  stage: deploy
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_REF_NAME != $CI_DEFAULT_BRANCH'
+      when: manual
+  environment:
+    name: momo-store-staging
+    deployment_tier: staging
+    url: ${STAGING_URL}
+    action: stop
+  extends: .helm_prepare
+  script:
+    - helm uninstall --kubeconfig ~/.kube/config --namespace momo-staging momo-store-staging
+    - kubectl delete namespace momo-staging
+
+deploy-production:
+  stage: deploy
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH'
+      when: manual
+  extends: .trigger-infra
+
+create-env-prod:
+  stage: deploy
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH'
   environment:
     name: momo-store
     deployment_tier: production
-    url: ${FQDN}
+    url: ${PRODUCTION_URL}
   needs:
-    - deploy-chart
+    - deploy-production
   script:
-    - echo Deploy
+    - echo Deploy production
   

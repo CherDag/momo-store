@@ -1,7 +1,7 @@
 import axios, { AxiosRequestHeaders } from 'axios';
 import { parse } from 'cookie';
 
-axios.defaults.baseURL = process.env.VUE_APP_API_URL;
+axios.defaults.baseURL = "{{ API_URL }}";
 class ApiService {
 
   static csrf_token: string;

@@ -12,7 +12,9 @@ Shop-dumplings
 
 - [General](#general)
   - [frontend](#frontend)
+  - [Backend](#backend)
   - [Run locally](#run-locally)
+  - [Deployment strategies](#deployment-strategies)
   - [Application repository structure](#application-repository-structure)
 - [Infrastructure repository](#infrastructure-repository)
   - [Repository structure](#repository-structure)
@@ -25,7 +27,6 @@ Shop-dumplings
   - [Installing Prometheus](#installing-prometheus)
 - [Versioning rules](#versioning-rules)
 - [Rules for making changes to the repository](#rules-for-making-changes-to-the-repository)
-- [TODO](#todo)
 
 # General
 
@@ -63,9 +64,12 @@ COPY --from=builder /usr/src/app/dist /app
 COPY nginx/momo.conf /etc/nginx/conf.d/momo.conf
 EXPOSE 8080
 HEALTHCHECK --interval=20s --timeout=3s --start-period=15s --retries=3 CMD service nginx status || exit 1
+CMD sed -i -e "s,{{ API_URL }},$API_URL,g" /app/js/app.*.js && nginx -g "daemon off;"
 ```
 
-##backend
+When launching a frontend container, it is crutial to pass the API_URL environment variable to it, which replaces a pre-placed template in the application code. This allows to dynamically change the address of the backend without rebuilding the application.
+
+## Backend
 
 Build the container based on the `golang:1.19.2` image and then copy the build artifact into the container based on the `scratch` image to minimize the final size of the container.
 
@@ -100,6 +104,14 @@ Via docker-compose
 ```bash
 docker-compose-up
 ```
+
+## Deployment strategies
+
+- When making changes to any branch other than `main`, as well as when creating an MR, a GitLab Environment is created with the name `staging\momo-store-staging`. The deployment takes place through the Helm-chart with the replacement of the domain name with a test one.
+   - Staging access URL: https://momo-staging.cherkashin.org
+  
+- The MR merge creates a GitLab Environment named `production\momo-store`. The deployment is only started manually by calling the pipeline from the infrastructure repository.
+   - Access URL: https://momo.cherkashin.org
 
 ## Application repository structure
 
@@ -251,7 +263,3 @@ The images are published to the GitLab Container Registry.
 # Rules for making changes to the repository
 
 All changes must be made in a separate branch followed by MR.
-
-# TODO
-
-Rewrite the frontend code to be able to change the address of the backend API through an environment variable at runtime, and not at the build stage, which will allow for a more flexible approach to deploying different application environments.

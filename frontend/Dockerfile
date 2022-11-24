@@ -7,8 +7,6 @@ RUN npm install
 #Copy src
 COPY . .
 ARG VERSION=${VERSION}
-# ENV VUE_APP_API_URL="{{ API_URL }}"
-# ENV NODE_ENV=production
 # Build static content
 RUN npm version ${VERSION} && npm run build
 

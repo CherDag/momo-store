@@ -14,6 +14,7 @@ URL: https://momo.cherkashin.org/
   - [Frontend](#frontend)
   - [Backend](#backend)
   - [Локальный запуск](#локальный-запуск)
+  - [Стратегии деплоя](#стратегии-деплоя)
   - [Структура репозитория приложения](#структура-репозитория-приложения)
 - [Репозиторий инфраструктуры](#репозиторий-инфраструктуры)
   - [Cтруктура репозитория](#cтруктура-репозитория)
@@ -26,7 +27,6 @@ URL: https://momo.cherkashin.org/
   - [Установка Prometheus](#установка-prometheus)
 - [Правила версионирования](#правила-версионирования)
 - [Правила внесения изменений в репозиторий](#правила-внесения-изменений-в-репозиторий)
-- [TODO](#todo)
 
 # Общее
 
@@ -40,7 +40,6 @@ URL: https://momo.cherkashin.org/
 
 ```
 VERSION - версия приложения (по-умолчанию формируется в пайплайне - 1.0.${CI_PIPELINE_ID})
-VUE_APP_API_URL - URL доступа к бэкенду. Задан в переменных CI/CD и формируется по принципу "<URL фронтенда>/api"
 ```
 После сборки контейнер тестируется с помощью `Postman`, затем маркируется тэгом `latest` и публикуется в GitLab Container Registry
 
@@ -54,7 +53,6 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 ARG VERSION=${VERSION}
-ARG VUE_APP_API_URL=${VUE_APP_API_URL}
 RUN npm version ${VERSION} && npm run build
 
 # Stage 2 - Create production image
@@ -64,7 +62,10 @@ COPY --from=builder /usr/src/app/dist /app
 COPY nginx/momo.conf /etc/nginx/conf.d/momo.conf
 EXPOSE 8080
 HEALTHCHECK --interval=20s --timeout=3s --start-period=15s --retries=3 CMD service nginx status || exit 1
+CMD sed -i -e "s,{{ API_URL }},$API_URL,g" /app/js/app.*.js && nginx -g "daemon off;"
 ```
+
+При запуске контейнера с фронтендом необходимо передать переменную окружения API_URL, которая заменяет в коде приложения заранее размещенный шаблон. Это позволяет динамически менять адрес бэкенда без повторной сборки приложения.
 
 ## Backend
 
@@ -101,6 +102,14 @@ CMD [ "./backend" ]
 ```bash
 docker-compose up
 ```
+
+## Стратегии деплоя
+
+- При внесении изменений в любую ветку, кроме `main`, а также при создании MR создается GitLab Environment с именем `staging\momo-store-staging`. Деплой происходит через Helm-чарт с заменой доменного имени на тестовое.
+  - URL доступа к staging: https://momo-staging.cherkashin.org
+  
+- При слиянии MR создается GitLab Environment с именем `production\momo-store`. Деплой запускается только вручную через вызов пайплайна из инфраструктурного репозитория.
+  - URL доступа: https://momo.cherkashin.org
 
 ## Структура репозитория приложения
 
@@ -252,7 +261,3 @@ kubectl apply -f ./admin-user.yaml
 # Правила внесения изменений в репозиторий
 
 Все изменения должны производиться в отдельном бранче с последующим MR.
-
-# TODO
-
-Переписать код фронтенда для возможности менять адрес API бэкенда через переменную окружения в рантайме, а не на этапе сборки, что позволит более гибко подходить к вопросу развертывания разных окружений приложения.

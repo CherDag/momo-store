@@ -1,47 +1,48 @@
-[English](README.en.md)
+[Russian](README.ru.md)
 
-# Momo Store aka Пельменная №2 <!-- omit in toc -->
+# Momo Store aka Pelmennaya #2 <!-- omit in toc -->
 
 URL: https://momo.cherkashin.org/
 
 <img width="900" alt="image" src="https://user-images.githubusercontent.com/9394918/167876466-2c530828-d658-4efe-9064-825626cc6db5.png">
 
-Магазин-пельменная
+Shop-dumplings
 
-# Оглавление <!-- omit in toc -->
+# Table of contents <!-- omit in toc -->
 
-- [Общее](#общее)
-  - [Frontend](#frontend)
+- [General](#general)
+  - [frontend](#frontend)
   - [Backend](#backend)
-  - [Локальный запуск](#локальный-запуск)
-  - [Стратегии деплоя](#стратегии-деплоя)
-  - [Структура репозитория приложения](#структура-репозитория-приложения)
-- [Репозиторий инфраструктуры](#репозиторий-инфраструктуры)
-  - [Cтруктура репозитория](#cтруктура-репозитория)
-  - [Подготовка инфраструктуры](#подготовка-инфраструктуры)
-    - [Кластер и хранилище](#кластер-и-хранилище)
-    - [Подготовка кластера](#подготовка-кластера)
-  - [Установка ArgoCD](#установка-argocd)
-  - [Установка Grafana](#установка-grafana)
-  - [Установка Loki](#установка-loki)
-  - [Установка Prometheus](#установка-prometheus)
-- [Правила версионирования](#правила-версионирования)
-- [Правила внесения изменений в репозиторий](#правила-внесения-изменений-в-репозиторий)
+  - [Run locally](#run-locally)
+  - [Deployment strategies](#deployment-strategies)
+  - [Application repository structure](#application-repository-structure)
+- [Infrastructure repository](#infrastructure-repository)
+  - [Repository structure](#repository-structure)
+  - [Preparing infrastructure](#preparing-infrastructure)
+    - [Cluster and storage](#cluster-and-storage)
+    - [Preparing the cluster](#preparing-the-cluster)
+  - [Install ArgoCD](#install-argocd)
+  - [Install Grafana](#install-grafana)
+  - [Install Loki](#install-loki)
+  - [Installing Prometheus](#installing-prometheus)
+- [Versioning rules](#versioning-rules)
+- [Rules for making changes to the repository](#rules-for-making-changes-to-the-repository)
 
-# Общее
+# General
 
-Сборка приложения выполняется сразу в контейнеры, которые затем деплоятся в кластер Kubernetes, развернутый в Яндекс.Облаке.
+The application is assembled immediately into containers, which are then deployed to a Kubernetes cluster deployed in Yandex.Cloud.
 
-## Frontend
+## frontend
 
-Контейнер фронтенда собирается на базе образа `node:16.13.2` и публикуется в образе `nginx:stable`
+The frontend container is built on the basis of the `node:16.13.2` image and published in the `nginx:stable` image
 
-При сборке необходимо указывать следующие переменные: 
+When building, you must specify the following variables:
 
 ```
-VERSION - версия приложения (по-умолчанию формируется в пайплайне - 1.0.${CI_PIPELINE_ID})
+VERSION - application version (by default, it is generated in the pipeline - 1.0.${CI_PIPELINE_ID})
+VUE_APP_API_URL - backend access URL. Specified in CI/CD variables and formed according to the "<frontend URL>/api" principle
 ```
-После сборки контейнер тестируется с помощью `Postman`, затем маркируется тэгом `latest` и публикуется в GitLab Container Registry
+Once built, the container is tested with `Postman`, then tagged with the `latest` tag and published to the GitLab Container Registry
 
 Dockerfile:
 
@@ -51,8 +52,9 @@ FROM node:16.13.2 as builder
 WORKDIR /usr/src/app
 COPY package*.json ./
 RUN npm install
-COPY . .
+COPY. .
 ARG VERSION=${VERSION}
+ARG VUE_APP_API_URL=${VUE_APP_API_URL}
 RUN npm version ${VERSION} && npm run build
 
 # Stage 2 - Create production image
@@ -65,13 +67,13 @@ HEALTHCHECK --interval=20s --timeout=3s --start-period=15s --retries=3 CMD servi
 CMD sed -i -e "s,{{ API_URL }},$API_URL,g" /app/js/app.*.js && nginx -g "daemon off;"
 ```
 
-При запуске контейнера с фронтендом необходимо передать переменную окружения API_URL, которая заменяет в коде приложения заранее размещенный шаблон. Это позволяет динамически менять адрес бэкенда без повторной сборки приложения.
+When launching a frontend container, it is crutial to pass the API_URL environment variable to it, which replaces a pre-placed template in the application code. This allows to dynamically change the address of the backend without rebuilding the application.
 
 ## Backend
 
-Сборка контейнера на базе образа `golang:1.19.2` и затем артифакт сборки копируется в контейнер на базе образа `scratch` для минимализации итогового размера контейнера.
+Build the container based on the `golang:1.19.2` image and then copy the build artifact into the container based on the `scratch` image to minimize the final size of the container.
 
-После тестирования контейнера с помощью Postman, он публикуется в GitLab Container Registry с тегом `latest`.
+After testing a container with Postman, it is published to the GitLab Container Registry with the `latest` tag.
 
 Dockerfile:
 
@@ -84,7 +86,7 @@ ENV CGO_ENABLED 0
 WORKDIR /app/src
 COPY go.mod go.sum ./
 RUN go mod download
-COPY . .
+COPY. .
 RUN go build -o backend-${VERSION} ./cmd/api
 
 # Stage 2
@@ -93,65 +95,65 @@ ARG VERSION=${VERSION}
 WORKDIR /app
 COPY --from=builder /app/src/backend-${VERSION} ./backend
 EXPOSE 8081
-CMD [ "./backend" ]
+cmd["./backend"]
 ```
-## Локальный запуск
+## Run locally
 
-Через docker-compose
+Via docker-compose
 
 ```bash
-docker-compose up
+docker-compose-up
 ```
 
-## Стратегии деплоя
+## Deployment strategies
 
-- При внесении изменений в любую ветку, кроме `main`, а также при создании MR создается GitLab Environment с именем `staging\momo-store-staging`. Деплой происходит через Helm-чарт с заменой доменного имени на тестовое.
-  - URL доступа к staging: https://momo-staging.cherkashin.org
+- When making changes to any branch other than `main`, as well as when creating an MR, a GitLab Environment is created with the name `staging\momo-store-staging`. The deployment takes place through the Helm-chart with the replacement of the domain name with a test one.
+   - Staging access URL: https://momo-staging.cherkashin.org
   
-- При слиянии MR создается GitLab Environment с именем `production\momo-store`. Деплой запускается только вручную через вызов пайплайна из инфраструктурного репозитория.
-  - URL доступа: https://momo.cherkashin.org
+- The MR merge creates a GitLab Environment named `production\momo-store`. The deployment is only started manually by calling the pipeline from the infrastructure repository.
+   - Access URL: https://momo.cherkashin.org
 
-## Структура репозитория приложения
+## Application repository structure
 
 ```
 .
 ├── backend
-├── frontend
+├── front end
 ├── postman
 ├── docker-compose.yml
 ├── .gitlab-ci.yml
 └── README.md
 ```
 
-# Репозиторий инфраструктуры
+# Infrastructure repository
 
-Описание инфраструктуры приложения и чартов для развертывания хранится в отдельном репозитории.
+The description of the application infrastructure and charts for deployment is stored in a separate repository.
 
-[Momo Infrastructure](https://gitlab.praktikum-services.ru/a.cherkashin/momo-infrastructure)
+[Momo Infrastructure](https://github.com/CherDag/momo-infrastructure)
 
-## Cтруктура репозитория
+## Repository structure
 
 ```
 .
-├── chart                  - Helm чарт приложения
-├── kubernetes-system      - Чарты и манифесты для дополнительных компонентов инфраструктуры
-│   ├── argo
-│   ├── grafana
-│   ├── prometheus
-│   ├── acme-issuer.yml
-│   ├── README.md
-│   └── sa.yml
-├── manifests               - манифесты для развертывания вручную
-├── terraform               - манифесты IaC
+├── chart - Helm chart app
+├── kubernetes-system - Charts and manifests for additional infrastructure components
+│ ├── argo
+│ ├── grafana
+│ ├── prometheus
+│ ├── acme-issuer.yml
+│ ├── README.md
+│ └── sa.yml
+├── manifests - manifests for manual deployment
+├── terraform - IaC manifests
 ├── .gitlab-ci.yml
 └── README.md
 ```
 
-## Подготовка инфраструктуры
+## Preparing infrastructure
 
-### Кластер и хранилище
+### Cluster and storage
 
-Заполнить файл `.s3conf`
+Fill in the `.s3conf` file
 
 ```bash
 terraform init
@@ -159,9 +161,9 @@ terraform plan -var-file secret.tfvars
 terraform apply - var-file secret.tfvars
 ```
 
-### Подготовка кластера
+### Preparing the cluster
 
-Установить Ingress-контроллер NGINX по инфтрукции от Яндекс:
+Install the NGINX Ingress controller according to the instructions from Yandex:
 
 ```bash
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -170,25 +172,25 @@ helm repo update
 helm install ingress-nginx ingress-nginx/ingress-nginx
 ```
 
-Установить менеджер сертификатов:
+Install certificate manager:
 
 ```bash
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.10.0/cert-manager.yaml
 ```
 
-Создать объект ClusterIssuer
+Create a ClusterIssuer object
 
 ```bash
 kubectl apply -f acme-issuer.yml
 ```
 
-Манифест `sa.yml` необходим для создания сервисного аккуанта для последующего формирования статического конфига для доступа к кластеру, например из CI/CD
+The `sa.yml` manifest is required to create a service account for a static config for accessing the cluster, for example from CI / CD
 
-## Установка ArgoCD
+## Install ArgoCD
 
-Доступ в ArgoCD: https://argocd.cherkashin.org
+Access to ArgoCD: https://argocd.cherkashin.org
 
-Login/Password: 
+Login/Password:
 
 ```bash
 cd kubernetes-system/argocd
@@ -198,28 +200,28 @@ kubectl apply -n argocd -f ingress.yml
 kubectl apply -n argocd -f user.yml
 kubectl apply -n argocd -f policy.yml
 ```
-После установки добавить приложение `momo-store` через YAML
+After installation, add the `momo-store` application via YAML
 
 ```yaml
-project: momo-store
+project: momo store
 source:
   repoURL: 'https://nexus.praktikum-services.ru/repository/06-a-cherkashin-momo-store/'
   targetRevision: x
-  chart: momo-store
+  chart:momo-store
 destination:
   server: 'https://kubernetes.default.svc'
-  namespace: default
+  namespace:default
 syncPolicy:
-  automated:
+  automatic:
     prune: true
     selfHeal: true
 ```
 
-Дальнейший мониторинг приложения и обновление производится только через Argo (либо вручную, либо в авторежиме)
+Further monitoring of the application and updating is done only through Argo (either manually or in auto mode)
 
-## Установка Grafana
+## Install Grafana
 
-Доступ в Grafana: https://grafana.cherkashin.org
+Access to Grafana: https://grafana.cherkashin.org
 
 Login/Password: user/Testusr1234
 
@@ -228,7 +230,7 @@ cd kubernetes-system/grafana
 helm install --atomic grafana ./
 ```
 
-## Установка Loki
+## Install Loki
 
 ```bash
 helm repo add grafana https://grafana.github.io/helm-charts
@@ -236,11 +238,11 @@ helm repo update
 helm install --atomic loki grafana/loki-stack
 ```
 
-Адрес Loki для добавления в качестве DataSource: `http://loki:3100`
+Loki address to add as DataSource: `http://loki:3100`
 
-## Установка Prometheus
+## Installing Prometheus
 
-URL для доступа: https://prometheus.cherkashin.org/
+Access URL: https://prometheus.cherkashin.org/
 
 ```bash
 cd kubernetes-system/prometheus
@@ -248,16 +250,16 @@ helm install --atomic prometheus ./
 kubectl apply -f ./admin-user.yaml
 ```
 
-Адрес Prometheus для добавления в качестве DataSource: `http://prometheus:9090`
+Prometheus address to add as DataSource: `http://prometheus:9090`
 
-# Правила версионирования
+# Versioning rules
 
-Версия приложения формируется из переменной `VERSION` в пайплайне - `1.0.${CI_PIPELINE_ID}`
+The application version is formed from the `VERSION` variable in the pipeline - `1.0.${CI_PIPELINE_ID}`
 
-Контейнеры фронтенда и бэкенда собираются и публикуются в отдельных пайплайнах, при сборке каждый образ получает тег с номером версии приложения. После тестирования образа на успешный запуск и отработку запросов (Postman), образ тегируется как latest.
+The front-end and back-end containers are built and published in separate pipelines, and each image gets a tag with the application's version number when built. After testing the image for successful launch and processing requests (Postman), the image is tagged as latest.
 
-Образы публикуются в GitLab Container Registry.
+The images are published to the GitLab Container Registry.
 
-# Правила внесения изменений в репозиторий
+# Rules for making changes to the repository
 
-Все изменения должны производиться в отдельном бранче с последующим MR.
+All changes must be made in a separate branch followed by MR.
